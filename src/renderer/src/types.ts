@@ -1,5 +1,7 @@
 export type StatusCode = number | 'ERR' | null;
 
+export type ToastState = { message: string; id: number } | null;
+
 export type Target = {
   id: string;
   title: string;
