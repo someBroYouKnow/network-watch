@@ -1,5 +1,38 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type { NetworkEvent, NetworkRequest, StatusCode, Target } from './types';
+
+type CaptureState = { requests: Map<string, NetworkRequest>; order: string[] };
+
+type CaptureAction =
+  | { type: 'event'; event: NetworkEvent }
+  | { type: 'clear' }
+  | { type: 'body'; requestId: string; body: string; base64Encoded: boolean };
+
+function captureReducer(state: CaptureState, action: CaptureAction): CaptureState {
+  if (action.type === 'clear') {
+    return { requests: new Map(), order: [] };
+  }
+
+  if (action.type === 'body') {
+    const req = state.requests.get(action.requestId);
+    if (!req) return state;
+    const requests = new Map(state.requests);
+    requests.set(action.requestId, { ...req, bodyCache: action.body, bodyBase64: action.base64Encoded });
+    return { ...state, requests };
+  }
+
+  const { event } = action;
+  const existed = state.requests.has(event.requestId);
+  const requests = new Map(state.requests);
+  requests.set(
+    event.requestId,
+    applyEventToRequest(requests.get(event.requestId) || createRequest(event.requestId), event),
+  );
+  const order = existed || state.order.includes(event.requestId)
+    ? state.order
+    : [...state.order, event.requestId];
+  return { requests, order };
+}
 
 const RESOURCE_TYPES = ['all', 'XHR', 'Fetch', 'Document', 'Script', 'Stylesheet', 'Image', 'Font', 'WebSocket', 'Other'];
 const DETAIL_TABS = ['headers', 'request-body', 'response-body', 'timing', 'raw'] as const;
@@ -358,13 +391,13 @@ function RequestDetails({
 }
 
 export function App() {
-  const [host, setHost] = useState('host.docker.internal');
+  const [host, setHost] = useState('localhost');
   const [port, setPort] = useState(9222);
   const [targets, setTargets] = useState<Target[]>([]);
   const [selectedTarget, setSelectedTarget] = useState('');
-  const [requests, setRequests] = useState(() => new Map<string, NetworkRequest>());
-  const [order, setOrder] = useState<string[]>([]);
+  const [{ requests, order }, dispatchCapture] = useReducer(captureReducer, { requests: new Map(), order: [] });
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
   const [filterText, setFilterText] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [errorsOnly, setErrorsOnly] = useState(false);
@@ -400,20 +433,25 @@ export function App() {
   }, [errorsOnly, filterText, filterType, order, requests]);
 
   const scanTargets = useCallback(async () => {
+    setScanning(true);
     setTargets([]);
     setSelectedTarget('');
     setStatus({ kind: 'idle', text: 'Scanning' });
-    const result = await window.cdp.listTargets({ host: host.trim() || 'localhost', port });
-    if (!result.ok) {
-      setStatus({ kind: 'error', text: 'No browser' });
-      showToast(`Could not connect to ${host}:${port}. Open help for launch flags.`);
-      setShowHelp(true);
-      return;
+    try {
+      const result = await window.cdp.listTargets({ host: host.trim() || 'localhost', port });
+      if (!result.ok) {
+        setStatus({ kind: 'error', text: 'No browser' });
+        showToast(`Could not connect to ${host}:${port}. Open help for launch flags.`);
+        setShowHelp(true);
+        return;
+      }
+      setTargets(result.targets);
+      setSelectedTarget(result.targets[0]?.id || '');
+      setStatus({ kind: 'idle', text: result.targets.length ? 'Ready' : 'Idle' });
+      showToast(result.targets.length ? `Found ${result.targets.length} tab${result.targets.length === 1 ? '' : 's'}` : 'Connected, but no page tabs were available.');
+    } finally {
+      setScanning(false);
     }
-    setTargets(result.targets);
-    setSelectedTarget(result.targets[0]?.id || '');
-    setStatus({ kind: 'idle', text: result.targets.length ? 'Ready' : 'Idle' });
-    showToast(result.targets.length ? `Found ${result.targets.length} tab${result.targets.length === 1 ? '' : 's'}` : 'Connected, but no page tabs were available.');
   }, [host, port, showToast]);
 
   const attachSelected = useCallback(async () => {
@@ -439,8 +477,7 @@ export function App() {
   }, []);
 
   const clearRequests = useCallback(() => {
-    setRequests(new Map());
-    setOrder([]);
+    dispatchCapture({ type: 'clear' });
     setSelectedId(null);
   }, []);
 
@@ -459,23 +496,18 @@ export function App() {
       showToast(result.error || 'Could not load body');
       return;
     }
-    setRequests((previous) => {
-      const next = new Map(previous);
-      const req = next.get(requestId);
-      if (req) next.set(requestId, { ...req, bodyCache: result.body, bodyBase64: result.base64Encoded });
-      return next;
-    });
+    dispatchCapture({ type: 'body', requestId, body: result.body, base64Encoded: result.base64Encoded });
   }, [showToast]);
 
   useEffect(() => {
+    if (!window.cdp) {
+      setStatus({ kind: 'error', text: 'Bridge error' });
+      showToast('Preload bridge unavailable. Restart the app.');
+      return;
+    }
+
     window.cdp.onNetworkEvent((event) => {
-      setRequests((previous) => {
-        const existed = previous.has(event.requestId);
-        const next = new Map(previous);
-        next.set(event.requestId, applyEventToRequest(next.get(event.requestId) || createRequest(event.requestId), event));
-        if (!existed) setOrder((current) => (current.includes(event.requestId) ? current : [...current, event.requestId]));
-        return next;
-      });
+      dispatchCapture({ type: 'event', event });
     });
     window.cdp.onTargetDisconnected(() => {
       setConnected(false);
@@ -513,14 +545,14 @@ export function App() {
             <input id="inp-host" type="text" value={host} onChange={(event) => setHost(event.target.value)} spellCheck={false} disabled={connected} />
             <label className="field-label">Port</label>
             <input id="inp-port" type="number" value={port} min="1" max="65535" onChange={(event) => setPort(Number(event.target.value || 9222))} disabled={connected} />
-            <button className="btn btn-secondary" title="Scan for tabs" onClick={scanTargets} disabled={connected}>Scan</button>
+            <button className="btn btn-secondary" title="Scan for tabs" onClick={scanTargets} disabled={connected || scanning}>{scanning ? 'Scanning…' : 'Scan'}</button>
           </div>
           <div className="target-group">
             <label className="field-label">Tab</label>
-            <select value={selectedTarget} disabled={connected || !targets.length} onChange={(event) => setSelectedTarget(event.target.value)}>
-              {targets.length ? targets.map((target) => <option key={target.id} value={target.id}>{target.title} - {target.url}</option>) : <option value="">- scan first -</option>}
+            <select value={selectedTarget} disabled={connected || scanning || !targets.length} onChange={(event) => setSelectedTarget(event.target.value)}>
+              {scanning ? <option value="">Scanning…</option> : targets.length ? targets.map((target) => <option key={target.id} value={target.id}>{target.title} - {target.url}</option>) : <option value="">- scan first -</option>}
             </select>
-            <button className="btn btn-primary" onClick={attachSelected} disabled={connected || !selectedTarget}>Connect</button>
+            <button className="btn btn-primary" onClick={attachSelected} disabled={connected || scanning || !selectedTarget}>Connect</button>
             <button className="btn btn-danger" onClick={detach} disabled={!connected}>Disconnect</button>
           </div>
         </div>
@@ -558,7 +590,13 @@ export function App() {
               })}
             </tbody>
           </table>
-          {!order.length && <div id="empty-state"><div className="empty-icon">[]</div><p>Connect to a browser tab to start capturing</p><small>Launch your browser with <code>--remote-debugging-port=9222</code></small></div>}
+          {!order.length ? (
+            <div id="empty-state">
+              <div className="empty-icon">[]</div>
+              <p>Connect to a browser tab to start capturing</p>
+              <small>Launch your browser with <code>--remote-debugging-port=9222</code></small>
+            </div>
+          ) : null}
         </div>
         <div id="resize-handle" onMouseDown={startResize} />
         <div id="detail-panel" style={{ width: detailWidth }}>

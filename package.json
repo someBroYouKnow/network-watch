@@ -8,8 +8,8 @@
   "private": true,
   "scripts": {
     "build:renderer": "vite build --config vite.config.ts",
-    "start": "npm run build:renderer && electron .",
-    "dev": "npm run build:renderer && electron . --dev",
+    "start": "pnpm run build:renderer && electron .",
+    "dev": "pnpm run build:renderer && electron . --dev",
     "pack": "electron-builder --dir",
     "dist": "electron-builder"
   },

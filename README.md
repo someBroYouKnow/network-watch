@@ -65,7 +65,7 @@ macOS Chrome:
 ```text
 src/main.js       Electron main process and CDP bridge
 src/preload.js    Safe IPC API exposed to the renderer
-src/index.html    App UI shell
-src/style.css     Dark developer-tool UI
-src/renderer.js   Request state, filtering, details, and HAR export
+src/renderer      React + TypeScript renderer app
+src/style.css     Shared dark developer-tool UI styles
+dist/renderer     Generated renderer build loaded by Electron
 ```
