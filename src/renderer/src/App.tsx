@@ -36,6 +36,7 @@ function captureReducer(state: CaptureState, action: CaptureAction): CaptureStat
 
 const RESOURCE_TYPES = ['all', 'XHR', 'Fetch', 'Document', 'Script', 'Stylesheet', 'Image', 'Font', 'WebSocket', 'Other'];
 const DETAIL_TABS = ['headers', 'request-body', 'response-body', 'timing', 'raw'] as const;
+const MAX_TARGET_LABEL_LENGTH = 100;
 type DetailTab = (typeof DETAIL_TABS)[number];
 
 type ToastState = { message: string; id: number } | null;
@@ -112,6 +113,10 @@ function parseUrlParts(url: string) {
   } catch {
     return { host: '', path: url || '' };
   }
+}
+
+function truncateLabel(value: string, maxLength = MAX_TARGET_LABEL_LENGTH) {
+  return value.length > maxLength ? `${value.slice(0, maxLength - 3)}...` : value;
 }
 
 function requestDuration(req: NetworkRequest) {
@@ -550,7 +555,10 @@ export function App() {
           <div className="target-group">
             <label className="field-label">Tab</label>
             <select value={selectedTarget} disabled={connected || scanning || !targets.length} onChange={(event) => setSelectedTarget(event.target.value)}>
-              {scanning ? <option value="">Scanning…</option> : targets.length ? targets.map((target) => <option key={target.id} value={target.id}>{target.title} - {target.url}</option>) : <option value="">- scan first -</option>}
+              {scanning ? <option value="">Scanning...</option> : targets.length ? targets.map((target) => {
+                const label = `${target.title} - ${target.url}`;
+                return <option key={target.id} value={target.id} title={label}>{truncateLabel(label)}</option>;
+              }) : <option value="">- scan first -</option>}
             </select>
             <button className="btn btn-primary" onClick={attachSelected} disabled={connected || scanning || !selectedTarget}>Connect</button>
             <button className="btn btn-danger" onClick={detach} disabled={!connected}>Disconnect</button>
