@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';" />
+  <title>Network Inspector</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header id="toolbar">
+    <div class="toolbar-left">
+      <div class="logo"><span class="logo-icon">⬡</span><span class="logo-text">Network Inspector</span></div>
+      <div class="connect-group">
+        <label class="field-label">Host</label><input id="inp-host" type="text" value="localhost" spellcheck="false" />
+        <label class="field-label">Port</label><input id="inp-port" type="number" value="9222" min="1" max="65535" />
+        <button id="btn-refresh" class="btn btn-secondary" title="Scan for tabs">↻ Scan</button>
+      </div>
+      <div class="target-group">
+        <label class="field-label">Tab</label><select id="sel-target" disabled><option value="">— scan first —</option></select>
+        <button id="btn-attach" class="btn btn-primary" disabled>Connect</button>
+        <button id="btn-detach" class="btn btn-danger" disabled>Disconnect</button>
+      </div>
+    </div>
+    <div class="toolbar-right"><span id="status-badge" class="badge badge-idle">Idle</span><button id="btn-clear" class="btn btn-ghost">⊘ Clear</button><button id="btn-export" class="btn btn-ghost">↓ HAR</button></div>
+  </header>
+  <div id="filter-bar">
+    <input id="inp-filter" type="search" placeholder="Filter by URL, method, status…" />
+    <div class="type-filters">
+      <button class="type-btn active" data-type="all">All</button><button class="type-btn" data-type="XHR">XHR</button><button class="type-btn" data-type="Fetch">Fetch</button><button class="type-btn" data-type="Document">Doc</button><button class="type-btn" data-type="Script">JS</button><button class="type-btn" data-type="Stylesheet">CSS</button><button class="type-btn" data-type="Image">Img</button><button class="type-btn" data-type="Font">Font</button><button class="type-btn" data-type="WebSocket">WS</button><button class="type-btn" data-type="Other">Other</button>
+    </div>
+    <label class="checkbox-label"><input type="checkbox" id="chk-errors-only" /> Errors only</label><span id="req-count">0 requests</span>
+  </div>
+  <main id="split-pane">
+    <div id="request-list-wrap"><table id="request-table"><thead><tr><th class="col-status">Status</th><th class="col-method">Method</th><th class="col-type">Type</th><th class="col-url">URL</th><th class="col-size">Size</th><th class="col-time">Time</th></tr></thead><tbody id="request-tbody"></tbody></table><div id="empty-state"><div class="empty-icon">🔌</div><p>Connect to a browser tab to start capturing</p><small>Launch your browser with <code>--remote-debugging-port=9222</code></small></div></div>
+    <div id="resize-handle"></div>
+    <div id="detail-panel"><div id="detail-empty"><div class="empty-icon">👆</div><p>Select a request to inspect it</p></div><div id="detail-content" hidden><div id="detail-tabs"><button class="detail-tab active" data-tab="headers">Headers</button><button class="detail-tab" data-tab="request-body">Request Body</button><button class="detail-tab" data-tab="response-body">Response Body</button><button class="detail-tab" data-tab="timing">Timing</button><button class="detail-tab" data-tab="raw">Raw</button></div><div id="detail-panes"><div id="pane-headers" class="detail-pane active"></div><div id="pane-request-body" class="detail-pane" hidden></div><div id="pane-response-body" class="detail-pane" hidden></div><div id="pane-timing" class="detail-pane" hidden></div><div id="pane-raw" class="detail-pane" hidden></div></div></div></div>
+  </main>
+  <footer id="status-bar"><span id="sb-requests">0 requests</span><span id="sb-size">0 B transferred</span><span id="sb-target">Not connected</span></footer>
+  <div id="modal-overlay" hidden><div id="modal"><h2>How to enable remote debugging</h2><p>Launch your browser with the remote debugging flag, then click Scan.</p><div class="launch-commands"><div class="launch-cmd"><span class="browser-name">Chrome / Brave</span><code>google-chrome --remote-debugging-port=9222<br/>brave-browser --remote-debugging-port=9222</code></div><div class="launch-cmd"><span class="browser-name">Edge</span><code>msedge --remote-debugging-port=9222</code></div><div class="launch-cmd"><span class="browser-name">Firefox</span><code>firefox --remote-debugging-port=9222</code><small>Requires remote debugging enabled in Firefox developer settings/about:config.</small></div><div class="launch-cmd"><span class="browser-name">Windows Chrome</span><code>"C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222</code></div><div class="launch-cmd"><span class="browser-name">macOS Chrome</span><code>/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --remote-debugging-port=9222</code></div></div><button id="modal-close" class="btn btn-primary">Got it</button></div></div>
+  <script src="renderer.js"></script>
+</body>
+</html>

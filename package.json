@@ -1,0 +1,44 @@
+{
+  "name": "network-inspector",
+  "version": "1.0.0",
+  "description": "A desktop Chrome DevTools Protocol network inspector built with Electron.",
+  "main": "src/main.js",
+  "author": "",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "dependencies": {
+    "chrome-remote-interface": "^0.33.3",
+    "electron": "^31.7.7"
+  },
+  "devDependencies": {
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.example.networkinspector",
+    "productName": "Network Inspector",
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "assets"
+    },
+    "mac": {
+      "category": "public.app-category.developer-tools"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Development"
+    }
+  }
+}
