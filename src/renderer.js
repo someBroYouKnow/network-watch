@@ -47,6 +47,18 @@ const elToast = document.createElement('div');
 elToast.id = 'toast';
 document.body.appendChild(elToast);
 
+function showHelpModal() {
+  elModalOverlay.hidden = false;
+  elModalOverlay.classList.remove('is-hidden');
+  elModalOverlay.setAttribute('aria-hidden', 'false');
+}
+
+function hideHelpModal() {
+  elModalOverlay.hidden = true;
+  elModalOverlay.classList.add('is-hidden');
+  elModalOverlay.setAttribute('aria-hidden', 'true');
+}
+
 function showToast(msg, duration = 2500) {
   elToast.textContent = msg;
   elToast.classList.add('show');
@@ -325,7 +337,7 @@ async function scanTargets() {
     setStatus('error', 'No browser');
     elTarget.innerHTML = '<option value="">No targets found</option>';
     showToast(`Could not connect to ${host}:${port}. Open help for launch flags.`, 5000);
-    elModalOverlay.hidden = false;
+    showHelpModal();
     return;
   }
   if (!res.targets.length) {
@@ -447,8 +459,8 @@ elClear.addEventListener('click', clearRequests);
 elExport.addEventListener('click', exportHar);
 elFilter.addEventListener('input', () => { state.filterText = elFilter.value; renderList(); });
 elErrorsOnly.addEventListener('change', () => { state.errorsOnly = elErrorsOnly.checked; renderList(); });
-elModalClose.addEventListener('click', () => { elModalOverlay.hidden = true; });
-elModalOverlay.addEventListener('click', (e) => { if (e.target === elModalOverlay) elModalOverlay.hidden = true; });
+elModalClose.addEventListener('click', hideHelpModal);
+elModalOverlay.addEventListener('click', (e) => { if (e.target === elModalOverlay) hideHelpModal(); });
 
 $$('.type-btn').forEach(btn => btn.addEventListener('click', () => {
   $$('.type-btn').forEach(b => b.classList.remove('active'));
@@ -491,7 +503,7 @@ window.cdp.onTargetDisconnected(() => {
   showToast('Browser target disconnected');
 });
 window.cdp.onExportHar(exportHar);
-window.cdp.onShowHelp(() => { elModalOverlay.hidden = false; });
+window.cdp.onShowHelp(showHelpModal);
 window.addEventListener('beforeunload', () => window.cdp.removeAllListeners());
 
 renderList();

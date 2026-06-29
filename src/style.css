@@ -508,6 +508,11 @@ pre {
     z-index: 10
 }
 
+#modal-overlay[hidden],
+#modal-overlay.is-hidden {
+    display: none
+}
+
 #modal {
     width: min(720px, 92vw);
     max-height: 86vh;
