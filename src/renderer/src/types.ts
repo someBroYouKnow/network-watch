@@ -63,11 +63,19 @@ export type NetworkEvent = {
 
 export type ApiResult<T> = ({ ok: true } & T) | { ok: false; error?: string; canceled?: boolean };
 
+export type StartBrowserResult = {
+  browser: string;
+  executablePath: string;
+  host: string;
+  port: number;
+};
+
 export type CdpApi = {
   listTargets: (opts: { host: string; port: number }) => Promise<ApiResult<{ targets: Target[] }>>;
   attachTarget: (opts: { host: string; port: number; targetId: string }) => Promise<ApiResult<Record<string, never>>>;
   getResponseBody: (opts: { requestId: string }) => Promise<ApiResult<{ body: string; base64Encoded: boolean }>>;
   saveFile: (opts: { defaultPath: string; content: string }) => Promise<ApiResult<{ path: string }>>;
+  startBrowserDebug: (opts: { port: number }) => Promise<ApiResult<StartBrowserResult>>;
   detach: () => Promise<ApiResult<Record<string, never>>>;
   onNetworkEvent: (callback: (event: NetworkEvent) => void) => void;
   onTargetDisconnected: (callback: (event: { targetId: string | null }) => void) => void;

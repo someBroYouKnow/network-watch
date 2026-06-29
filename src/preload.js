@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('cdp', {
   attachTarget: (opts) => ipcRenderer.invoke('attach-target', opts),
   getResponseBody: (opts) => ipcRenderer.invoke('get-response-body', opts),
   saveFile: (opts) => ipcRenderer.invoke('save-file', opts),
+  startBrowserDebug: (opts) => ipcRenderer.invoke('start-browser-debug', opts),
   detach: () => ipcRenderer.invoke('detach'),
   onNetworkEvent: (callback) => ipcRenderer.on('network-event', (_event, data) => callback(data)),
   onTargetDisconnected: (callback) => ipcRenderer.on('target-disconnected', (_event, data) => callback(data)),

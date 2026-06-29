@@ -20,6 +20,7 @@ export function App() {
   const [{ requests, order }, dispatchCapture] = useReducer(captureReducer, { requests: new Map(), order: [] });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
+  const [launchingBrowser, setLaunchingBrowser] = useState(false);
   const [filterText, setFilterText] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [errorsOnly, setErrorsOnly] = useState(false);
@@ -75,6 +76,27 @@ export function App() {
       setScanning(false);
     }
   }, [host, port, showToast]);
+
+  const startBrowser = useCallback(async () => {
+    setLaunchingBrowser(true);
+    setStatus({ kind: 'idle', text: 'Starting browser' });
+
+    try {
+      const result = await window.cdp.startBrowserDebug({ port });
+      if (!result.ok) {
+        setStatus({ kind: result.canceled ? 'idle' : 'error', text: result.canceled ? 'Idle' : 'Launch failed' });
+        if (!result.canceled) showToast(result.error || 'Could not start browser');
+        return;
+      }
+
+      setHost(result.host);
+      setPort(result.port);
+      setStatus({ kind: 'idle', text: 'Browser started' });
+      showToast(`Started ${result.browser}: ${result.executablePath}`);
+    } finally {
+      setLaunchingBrowser(false);
+    }
+  }, [port, showToast]);
 
   const attachSelected = useCallback(async () => {
     if (!selectedTarget) return;
@@ -164,10 +186,12 @@ export function App() {
         selectedTarget={selectedTarget}
         connected={connected}
         scanning={scanning}
+        launchingBrowser={launchingBrowser}
         status={status}
         onHostChange={setHost}
         onPortChange={setPort}
         onSelectedTargetChange={setSelectedTarget}
+        onStartBrowser={startBrowser}
         onScan={scanTargets}
         onAttach={attachSelected}
         onDetach={detach}

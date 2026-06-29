@@ -9,10 +9,12 @@ type ToolbarProps = {
   selectedTarget: string;
   connected: boolean;
   scanning: boolean;
+  launchingBrowser: boolean;
   status: { kind: StatusKind; text: string };
   onHostChange: (value: string) => void;
   onPortChange: (value: number) => void;
   onSelectedTargetChange: (value: string) => void;
+  onStartBrowser: () => void;
   onScan: () => void;
   onAttach: () => void;
   onDetach: () => void;
@@ -27,10 +29,12 @@ export function Toolbar({
   selectedTarget,
   connected,
   scanning,
+  launchingBrowser,
   status,
   onHostChange,
   onPortChange,
   onSelectedTargetChange,
+  onStartBrowser,
   onScan,
   onAttach,
   onDetach,
@@ -46,6 +50,7 @@ export function Toolbar({
           <input id="inp-host" type="text" value={host} onChange={(event) => onHostChange(event.target.value)} spellCheck={false} disabled={connected} />
           <label className="field-label">Port</label>
           <input id="inp-port" type="number" value={port} min="1" max="65535" onChange={(event) => onPortChange(Number(event.target.value || 9222))} disabled={connected} />
+          <button className="btn btn-secondary" title="Start Chrome, Brave, or Edge in debug mode" onClick={onStartBrowser} disabled={connected || scanning || launchingBrowser}>{launchingBrowser ? 'Starting...' : 'Start Browser'}</button>
           <button className="btn btn-secondary" title="Scan for tabs" onClick={onScan} disabled={connected || scanning}>{scanning ? 'Scanning...' : 'Scan'}</button>
         </div>
         <div className="target-group">

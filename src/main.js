@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, Menu, shell, dialog } = require('electron');
+const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const CDP = require('chrome-remote-interface');
@@ -80,6 +81,114 @@ async function disconnectCDP() {
     activeTarget = null;
   }
 }
+
+function fileExists(filePath) {
+  try {
+    return Boolean(filePath) && fs.existsSync(filePath);
+  } catch (_) {
+    return false;
+  }
+}
+
+function findExecutableOnPath(names) {
+  const pathDirs = (process.env.PATH || '').split(path.delimiter).filter(Boolean);
+  const extensions = process.platform === 'win32'
+    ? (process.env.PATHEXT || '.EXE;.CMD;.BAT').split(';')
+    : [''];
+
+  for (const dir of pathDirs) {
+    for (const name of names) {
+      for (const ext of extensions) {
+        const candidate = path.join(dir, name.endsWith(ext.toLowerCase()) || name.endsWith(ext) ? name : `${name}${ext}`);
+        if (fileExists(candidate)) return candidate;
+      }
+    }
+  }
+
+  return null;
+}
+
+function findInstalledBrowsers() {
+  const browsers = [];
+  const add = (id, name, executablePath) => {
+    if (fileExists(executablePath) && !browsers.some(browser => browser.executablePath === executablePath)) {
+      browsers.push({ id, name, executablePath });
+    }
+  };
+
+  if (process.platform === 'win32') {
+    const roots = [
+      process.env.PROGRAMFILES,
+      process.env['PROGRAMFILES(X86)'],
+      process.env.LOCALAPPDATA,
+    ].filter(Boolean);
+
+    for (const root of roots) {
+      add('chrome', 'Google Chrome', path.join(root, 'Google', 'Chrome', 'Application', 'chrome.exe'));
+      add('brave', 'Brave', path.join(root, 'BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe'));
+      add('edge', 'Microsoft Edge', path.join(root, 'Microsoft', 'Edge', 'Application', 'msedge.exe'));
+    }
+  } else if (process.platform === 'darwin') {
+    add('chrome', 'Google Chrome', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome');
+    add('brave', 'Brave', '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser');
+    add('edge', 'Microsoft Edge', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge');
+  } else {
+    add('chrome', 'Google Chrome / Chromium', findExecutableOnPath(['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser']));
+    add('brave', 'Brave', findExecutableOnPath(['brave-browser', 'brave']));
+    add('edge', 'Microsoft Edge', findExecutableOnPath(['microsoft-edge', 'microsoft-edge-stable', 'msedge']));
+  }
+
+  return browsers;
+}
+
+ipcMain.handle('start-browser-debug', async (_event, { port = 9222 } = {}) => {
+  const browsers = findInstalledBrowsers();
+
+  if (!browsers.length) {
+    return { ok: false, error: 'Could not find Chrome, Brave, or Edge on this system.' };
+  }
+
+  const buttons = [...browsers.map(browser => browser.name), 'Cancel'];
+  const result = await dialog.showMessageBox(mainWindow, {
+    type: 'question',
+    title: 'Start Browser',
+    message: 'Select a browser to start in debug mode.',
+    detail: browsers.map(browser => `${browser.name}: ${browser.executablePath}`).join('\n'),
+    buttons,
+    cancelId: buttons.length - 1,
+  });
+
+  if (result.response === buttons.length - 1) return { ok: false, canceled: true };
+
+  const browser = browsers[result.response];
+  const debugPort = Number(port) || 9222;
+  const profileDir = path.join(app.getPath('userData'), 'debug-profiles', browser.id);
+  fs.mkdirSync(profileDir, { recursive: true });
+
+  const args = [
+    `--remote-debugging-port=${debugPort}`,
+    '--remote-debugging-address=127.0.0.1',
+    `--user-data-dir=${profileDir}`,
+    'about:blank',
+  ];
+
+  try {
+    const child = spawn(browser.executablePath, args, {
+      detached: true,
+      stdio: 'ignore',
+    });
+    child.unref();
+    return {
+      ok: true,
+      browser: browser.name,
+      executablePath: browser.executablePath,
+      host: 'localhost',
+      port: debugPort,
+    };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
 
 ipcMain.handle('list-targets', async (_event, { host = 'localhost', port = 9222 }) => {
   try {
