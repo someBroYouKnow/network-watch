@@ -8,11 +8,9 @@ services:
     environment:
       DISPLAY: ":99"
       ELECTRON_DISABLE_GPU: "1"
-    command:
-      - xvfb-run
-      - --auto-servernum
-      - --server-args=-screen 0 1400x900x24
-      - npm
-      - start
-      - --
-      - --no-sandbox
+      NO_AT_BRIDGE: "1"
+      NOVNC_PORT: "6080"
+      VNC_PORT: "5900"
+    ports:
+      - "6080:6080"
+      - "5900:5900"

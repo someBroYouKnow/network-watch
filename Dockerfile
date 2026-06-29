@@ -5,8 +5,13 @@ WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
       ca-certificates \
+      dbus-x11 \
+      fluxbox \
+      novnc \
+      websockify \
       xauth \
       xvfb \
+      x11vnc \
       libasound2 \
       libatk-bridge2.0-0 \
       libatk1.0-0 \
@@ -29,8 +34,15 @@ COPY package*.json ./
 RUN npm install
 
 COPY . .
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 ENV DISPLAY=:99
 ENV ELECTRON_DISABLE_GPU=1
+ENV NO_AT_BRIDGE=1
+ENV NOVNC_PORT=6080
+ENV VNC_PORT=5900
 
-CMD ["xvfb-run", "--auto-servernum", "--server-args=-screen 0 1400x900x24", "npm", "start", "--", "--no-sandbox"]
+EXPOSE 6080 5900
+
+CMD ["docker-entrypoint.sh"]
