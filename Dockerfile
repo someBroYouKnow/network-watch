@@ -5,6 +5,7 @@ WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
       ca-certificates \
+      xauth \
       xvfb \
       libasound2 \
       libatk-bridge2.0-0 \
